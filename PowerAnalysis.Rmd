@@ -1,0 +1,174 @@
+---
+title: "Music Power Analysis"
+author: "Stephanie, Leila, Annie, Nicholas"
+date: "10/03/2022"
+output: pdf_document
+---
+
+Here, we will be documenting the simulation of our experiment design to test its statistical power. Our Power Analysis conducted demonstrates what sample size we need to have power in our final experiment with online ads. We will be testing the effect of having ads versus not having ads on the different social media platforms: Instagram, Facebook, Google, and Snapchat. We will also be testing the effect of whether the advertisement itself is a visual image or an informative piece of text.
+
+Our scenarios include altering the treatment and control groups, adjusting the time of advertisements on each platform, altering the ads used, and increasing the group sizes. The ATE would be difference in average clicks for people receiving advertisements and those not receiving advertisements. We generated 3 separate data tables by varying the amount of simulated individuals in an attempt to determine which sample size would be most effective to perform power analysis on. 
+
+Statistical knowledge tells us that when two sample distributions overlap, we need a relatively large sample size to have a lot of Power. We can estimate that our internet users who are viewing our Ads will have overlapping distributions between the treatment group distribution and the control group distribution. Nevertheless, we will have a large enough sample size ($500 of Ads is equivalent to 2,000 people per sample size) to have our experiment have a lot of Power and reveal statistical significance between our treatment group and control group. 
+
+A published experiment1 testing the impact of native online advertising on persuasion surveyed a sample size of 77 individuals and measured statistically using a one-sided t-test. This experiment had a narrowed demographic of only Dutch people in a 20 age range. Their experiment focuses more on the persuasiveness of targeted ads so it measures impact of behavior on a likert scale whereas our experiment measures the impact of ads on engagement represented by clicks and subscriptions. Since we are testing on multiple platforms, we would also need a larger sample size - at least 4x the one mentioned in the study. However, we can also test our impact using a t-test. 
+
+For our power analysis, we will be using T-tests to test the impact of the treatment effect (having ads vs. no ads). We will also consider using multivariate regression with robust standard errors.
+
+The plots and tables below will show the power analysis of sample sizes 100, 1,000, and 10,000. We will also aggregate on by the 4 different platforms as well as the two types of ads.
+
+Power analysis on treatment, control, text/image, platforms. Use sandwhich package and vcovHC. Maybe focus on 1 or 2 platforms 
+
+Bibliography
+
+Reijmersdal, Eva A. van, et al. “Effects of Online Behaviorally Targeted Native Advertising on Persuasion: A Test of Two Competing Mechanisms.” Computers in Human Behavior Reports, Elsevier, 10 Aug. 2022, https://www.sciencedirect.com/science/article/pii/S2451958822000550. 
+
+\newpage
+
+```{r}
+library(data.table)
+library(sandwich)
+library(ggplot2)
+```
+
+```{r simulated 100, include=FALSE}
+sample_size = 100
+d_100 <- data.table(personID = 1:sample_size)
+d_100[, ':=' (experiment = sample(rep(c(0, 1), each = sample_size/2)),
+            subscribed = sample(c(0:1), .N, replace=TRUE),
+            clicks = sample(c(0:50), .N, replace=TRUE),
+            website_visits = sample(c(0:20), .N, replace=TRUE),
+            click_tau = rnorm(.N, mean = 10, sd = 3),
+            visits_tau = rnorm(.N, mean = 5, sd = 2),
+            download_tau = rnorm(.N, mean = 3, sd = 1),
+            ads_ran = sample(c(0:100), .N, replace=TRUE),
+            text_image = sample(c("text", "image"), .N, replace=TRUE),
+            platforms = sample(c("Instagram", "Facebook (Meta)"), .N, replace=TRUE))]
+d_100[experiment == 0, text_image := "none"]
+d_100[experiment == 0, click_tau := 0]
+d_100[experiment == 0, download_tau := 0]
+d_100[experiment == 0, visits_tau := 0]
+d_100[website_visits > 0, num_downloads := sample(c(0:30), .N, replace=TRUE)]
+d_100[website_visits == 0, num_downloads := 0]
+d_100[, treat_clicks := clicks + click_tau]
+d_100[, treat_num_downloads := num_downloads + download_tau]
+d_100[, treat_website_visits := website_visits + visits_tau]
+d_100[1:5]
+```
+
+```{r simulated 1000, include=TRUE}
+sample_size = 1000
+d_1000 <- data.table(personID = 1:sample_size)
+d_1000[, ':=' (experiment = sample(rep(c(0, 1), each = sample_size/2)),
+            subscribed = sample(c(0:1), .N, replace=TRUE),
+            clicks = sample(c(0:50), .N, replace=TRUE),
+            website_visits = sample(c(0:20), .N, replace=TRUE),
+            click_tau = rnorm(.N, mean = 10, sd = 3),
+            visits_tau = rnorm(.N, mean = 5, sd = 2),
+            download_tau = rnorm(.N, mean = 3, sd = 1),
+            ads_ran = sample(c(0:100), .N, replace=TRUE),
+            text_image = sample(c("text", "image"), .N, replace=TRUE),
+            platforms = sample(c("Instagram", "Facebook (Meta)"), .N, replace=TRUE))]
+d_1000[experiment == 0, text_image := "none"]
+d_1000[experiment == 0, click_tau := 0]
+d_1000[experiment == 0, download_tau := 0]
+d_1000[experiment == 0, visits_tau := 0]
+d_1000[website_visits > 0, num_downloads := sample(c(0:30), .N, replace=TRUE)]
+d_1000[website_visits == 0, num_downloads := 0]
+d_1000[, treat_clicks := clicks + click_tau]
+d_1000[, treat_num_downloads := num_downloads + download_tau]
+d_1000[, treat_website_visits := website_visits + visits_tau]
+d_1000[1:5]
+```
+
+***Simulated 10000 sample size***
+```{r simulated 10000, include=FALSE}
+sample_size = 10000
+d_10000 <- data.table(personID = 1:sample_size)
+d_10000[, ':=' (experiment = sample(rep(c(0, 1), each = sample_size/2)),
+            subscribed = sample(c(0:1), .N, replace=TRUE),
+            clicks = sample(c(0:50), .N, replace=TRUE),
+            website_visits = sample(c(0:20), .N, replace=TRUE),
+            ads_ran = sample(c(0:100), .N, replace=TRUE),
+            click_tau = rnorm(.N, mean = 10, sd = 3),
+            visits_tau = rnorm(.N, mean = 5, sd = 2),
+            download_tau = rnorm(.N, mean = 3, sd = 1),
+            text_image = sample(c("text", "image"), .N, replace=TRUE),
+            num_downloads = sample(c(0:30), .N, replace=TRUE),
+            platforms = sample(c("Instagram", "Facebook (Meta)"), .N, replace=TRUE))]
+d_10000[experiment == 0, text_image := "none"]
+d_10000[experiment == 0, click_tau := 0]
+d_10000[experiment == 0, download_tau := 0]
+d_10000[experiment == 0, visits_tau := 0]
+d_10000[website_visits > 0, num_downloads := sample(c(0:30), .N, replace=TRUE)]
+d_10000[website_visits == 0, num_downloads := 0]
+d_10000[, treat_clicks := clicks + click_tau]
+d_10000[, treat_num_downloads := num_downloads + download_tau]
+d_10000[, treat_website_visits := website_visits + visits_tau]
+d_10000[1:5]
+```
+
+Here we have the visual distribution of p-values for the previous data tables we created.
+
+***Distribution of p_values for sample size 100***
+```{r sample size 100 p_values, include=TRUE}
+p_values <- NA
+for (i in 1:1000) {
+  sampled_groups <- sample(d_100$experiment, length(d_100$experiment), replace=TRUE)
+  #d[sample(experiment)]
+  click_together = d_100$treat_clicks * sampled_groups + d_100$treat_clicks * (1-sampled_groups)
+  p_values[i] <- t.test(click_together ~ sampled_groups)$p.value
+}
+hist(
+  x = p_values,
+  col = "black",
+  main = "Histogram of 100 samples")
+power <- mean(abs(p_values) < 0.05)
+power
+```
+
+***Distribution of p_values for sample size 1000***
+```{r sample size 1000 p_values, include=TRUE}
+p_values <- NA
+for (i in 1:1000) {
+  sampled_groups <- sample(d_1000$experiment, length(d_1000$experiment), replace=TRUE)
+  #d[sample(experiment)]
+  click_together = d_1000$treat_clicks * sampled_groups + d_1000$treat_clicks * (1-sampled_groups)
+  p_values[i] <- t.test(click_together ~ sampled_groups)$p.value
+}
+hist(
+  x = p_values,
+  col = "black",
+  main = "Histogram of 1000 samples")
+power <- mean(abs(p_values) < 0.05)
+power
+```
+
+***Distribution of p_values for sample size 10000***
+```{r sample size 10000 p_values, include=TRUE}
+p_values <- NA
+for (i in 1:1000) {
+  sampled_groups <- sample(d_10000$experiment, length(d_10000$experiment), replace=TRUE)
+  #d[sample(experiment)]
+  click_together = d_10000$treat_clicks * sampled_groups + d_10000$treat_clicks * (1-sampled_groups)
+  p_values[i] <- t.test(click_together ~ sampled_groups)$p.value
+}
+hist(
+  x = p_values,
+  col = "black",
+  main = "Histogram of 10000 samples")
+power <- mean(abs(p_values) < 0.05)
+power
+```
+
+```{r ads and no_ads across each platform, include=TRUE}
+d_1000[, .(mean_clicks = mean(treat_clicks)), key = text_image]
+d_1000[, .(mean_clicks = mean(treat_clicks)), keyby = .(experiment, platforms, text_image)]
+```
+
+The results of our power analysis as we increase our sample size in the 3 simulated scenarios are similar and relatively low. With the statistical powers increasing for each sample this tells us that the probability of rejecting the null hypothesis with our simulated experiment is low. However, the addition of variables such as the number of advertisements ran, type of ads, music accompanied with each ad, and the platform used to reach our audience may alter our outcomes to see a noticeable difference in clicks on advertisements.
+
+
+```{r, include=FALSE}
+ggplot() + aes(x = p_values) + geom_histogram() 
+```

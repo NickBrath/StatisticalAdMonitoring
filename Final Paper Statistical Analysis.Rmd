@@ -1,0 +1,194 @@
+---
+title: "w241 Statistical Analysis"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r}
+install.packages("cobalt")
+```
+
+```{r}
+install.packages("psych")
+install.packages("corrplot")
+```
+
+```{r}
+library(data.table)
+#install.packages("kableExtra")
+library(kableExtra)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(cobalt)
+library(psych)
+library(corrplot)
+```
+
+```{r}
+facebook_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=7)
+instagram_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=9)
+gender_age_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=3)
+final_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=2)
+```
+
+```{r}
+facebook_table <- data.table(facebook_data)
+instagram_table <- data.table(instagram_data)
+gender_age_table <- data.table(gender_age_data)
+final_dataset <- data.table(final_data)
+```
+
+```{r}
+facebook_table
+instagram_table
+final_dataset
+```
+
+```{r}
+gender_age_table
+final_dataset
+```
+
+```{r, include=FALSE}
+colnames(facebook_table)[colnames(facebook_table) %in% c("Ad Set Name", "Amount spent (USD)", "Cost per result")] <- c("Ad_name", "Dollars", "Cost_per_Ad")
+colnames(instagram_table)[colnames(instagram_table) %in% c("Ad Set Name","Amount spent (USD)", "Cost per result")] <- c("Ad_name", "Dollars", "Cost_per_Ad")
+facebook_table
+```
+
+```{r}
+facebook_model <- facebook_table[,lm(Results ~ Reach + Impressions + Dollars + Cost_per_Ad)]
+instagram_model <-  instagram_table[,lm(Results ~ Reach+ Impressions + Dollars + Cost_per_Ad)]
+coeftest(facebook_model)
+coeftest(instagram_model)
+```
+
+```{r, include=FALSE}
+facebook_table[is.na(facebook_table)] <- 0
+average_results_table <- facebook_table %>% group_by(Ad_name) %>%
+                summarize(average_results = mean(Results))
+
+instagram_table[is.na(instagram_table)] <- 0
+insta_average_results_table <- instagram_table %>% group_by(Ad_name) %>%
+                summarize(average_results = mean(Results))
+
+average_results_table
+insta_average_results_table 
+```
+
+```{r, include=FALSE}
+# Facebook Average Results Comparison
+ggplot(average_results_table, aes(x=Ad_name, y=average_results)) + geom_bar(stat='identity', fill = "lightblue") + theme_gray() + labs(title = "Average Results for Facebook Ads")
+```
+
+```{r, include=FALSE}
+# Instagram Average Results Comparison
+ggplot(insta_average_results_table, aes(x=Ad_name, y=average_results)) + geom_bar(stat='identity', fill = "lightblue") +theme_gray()+ labs(title = "Average Results for Instagram Ads")
+```
+
+```{r, include=TRUE}
+total_averages = merge(average_results_table, insta_average_results_table, all=TRUE)
+total_averages
+ggplot(total_averages, aes(x=Ad_name, y=average_results)) + geom_bar(stat='identity', fill = "lightblue") +theme_gray()+ labs(title = "Average Results for Ad type on each Platform")
+```
+
+```{r, include=FALSE}
+gender_age_table$clicked <- ifelse(gender_age_table$clicks > 0, 1, 0)
+gender_age_table
+```
+
+```{r}
+?bal.tab()
+```
+
+***Covariate Balance Table***
+```{r}
+cov <- subset(gender_age_table, select = c("platform", "condition", "age", "gender", "clicks", "reach", "conversion_rate"))
+
+gender_age_table$p.score <- glm(clicked ~ platform + condition + age + gender + reach + conversion_rate, data = gender_age_table, family = "binomial")$fitted.values
+
+gender_age_table$att.weights <- with(gender_age_table, clicked + (1-clicked) * p.score/(1-p.score))
+
+balance <- bal.tab(clicked ~ cov, stats = c('m', 'sds', 'ovl'), un = TRUE, int = TRUE, disp.means = TRUE, disp.sds = TRUE, data = gender_age_table, title = "Covariates for Advertisment Experiment")
+
+print(balance)
+```
+
+***Statistical Analysis***
+
+**EDA**
+
+***Gender & Age Analysis***
+```{r}
+# Gender Analysis
+gender_age_table[, .(avg_clicks = mean(clicks)), keyby = .(gender)]
+gender_age_table[, .(total_conversion = sum(conversion_rate)), keyby = .(gender)]
+
+# Gender and Age click rates/conversion rates across each platform
+gender_age_table[, .(avg_clicks_across_platforms = mean(clicks)), keyby = .(gender, age)]
+gender_age_table[, .(conversion_rate_across_platforms = sum(conversion_rate)), keyby = .(gender, age)]
+
+# Gender and Age click rates/conversion rates for each platform
+gender_age_table[, .(avg_clicks_per_platform = mean(clicks)), keyby = .(platform, gender, age)]
+gender_age_table[, .(conversion_rate_per_platform = sum(conversion_rate)), keyby = .(platform, gender, age)]
+
+# Gender and Age reach across both platforms
+gender_age_table[, .(total_reach = sum(reach)), keyby = .(gender, age)]
+
+# Gender and Age reach for each platforms
+gender_age_table[, .(total_reach = sum(reach)), keyby = .(platform, gender, age)]
+
+# Age Analysis
+gender_age_table[, .(avg_clicks = mean(clicks)), keyby = .(platform, age)]
+gender_age_table[, .(total_conversion = sum(conversion_rate)), keyby = .(platform, age)]
+```
+
+```{r}
+# Conversion rate boxplot for genders on each platform
+ggplot(data = gender_age_table, aes(gender, conversion_rate, color = platform)) + geom_boxplot() + labs(title = "Conversion Rate between Male & Femal Users on Facebook and Instagram")
+```
+
+```{r}
+# Conversion rate boxplot for ages in each gender
+ggplot(gender_age_table, aes(age, conversion_rate, color = gender)) + geom_boxplot() + labs(title="Conversion Rate between different age groups of Men & Women")
+```
+
+```{r}
+# Gender and Age reach within each platform
+ggplot(gender_age_table, aes(fill = platform, y=reach, x=age)) + geom_bar(position="dodge", stat="identity") + labs(title= "Total Reach of targeted age groups on Facebook & Instagram")
+```
+
+***Platform Analysis***
+```{r}
+# Correlation Matrix plot of numeric variables
+final_dataset
+numeric_final_dataset <- subset(final_dataset, select = c("Clicks (all)", "Link clicks", "Reach", "Impressions", "Frequency", "Results"))
+corrplot(cor(numeric_final_dataset), method="shade", type="lower", diag=TRUE, tl.col = "black", bg="white", title="Metrics Correlation Plot")
+```
+
+***Time Patterns***
+```{r}
+# Total reach of individuals over time
+ggplot(final_dataset, aes(fill = Condition, x=Day, y=Reach, color = Experiment)) + geom_line(aes(linetype=Condition)) + labs(title="Total Individuals Reached per Platform over time")
+```
+
+```{r}
+# Total clicks for individuals over time
+ggplot(final_dataset, aes(fill = Condition, x=Day, y=Results, color = Experiment)) + geom_line(aes(linetype=Condition)) + labs(title="Total Visits per Platform over time")
+```
+
+```{r}
+# Total impressions for platforms over time
+ggplot(final_dataset, aes(fill = Condition, x=Day, y=Impressions, color = Experiment)) + geom_line(aes(linetype=Condition)) + labs(title="Total Impressions per Platform over time")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

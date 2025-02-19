@@ -1,0 +1,62 @@
+---
+title: "Covariate Balance Table"
+output: pdf_document
+date: '2022-12-13'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+#install.packages("kableExtra")
+library(kableExtra)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(cobalt)
+library(psych)
+library(corrplot)
+```
+## R Markdown
+
+```{r}
+# Note: You may need to change the paths for these excel files by downloading the google excel sheet
+facebook_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=7)
+instagram_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=9)
+gender_age_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=3)
+final_data = read_excel("/Users/nicholasbrathwaite/DataW241_Experiments/Data (3).xlsx", sheet=2)
+```
+
+***Covariate Balance Table***
+```{r}
+cov <- subset(gender_age_table, select = c("platform", "condition", "age", "gender", "clicks", "reach", "conversion_rate"))
+
+#gender_age_table$p.score <- glm(clicked ~ platform + condition + age + gender + reach + conversion_rate, data = gender_age_table, family = "binomial")$fitted.values
+
+#gender_age_table$att.weights <- with(gender_age_table, clicked + (1-clicked) * p.score/(1-p.score))
+
+balance <- bal.tab(clicked ~ cov, stats = c('m', 'sds', 'ovl'), un = TRUE, int = TRUE, disp.means = TRUE, disp.sds = TRUE, data = gender_age_table, title = "Covariates for Advertisment Experiment")
+
+print(balance)
+```
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
